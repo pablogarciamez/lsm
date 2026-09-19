@@ -1,4 +1,4 @@
-from src.lsm.memtable import Memtable
+from lsm import Memtable
 
 def test_put_and_read():
     m = Memtable()

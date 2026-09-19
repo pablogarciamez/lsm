@@ -1,4 +1,4 @@
-from src.lsm.store import Store
+from lsm import Store
 
 def test_store_without_existing_wal(tmp_path):
     path = tmp_path / "data.wal"

@@ -1,4 +1,4 @@
-from src.lsm.wal import writeEntry, readEntry, readWAL
+from lsm import writeEntry, readEntry, readWAL
 
 def test_writeEntry():
     with open("test.wal", "wb") as f:
