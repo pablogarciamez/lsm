@@ -1,3 +1,4 @@
+
 from lsm import writeEntry, readEntry, readWAL
 
 def test_writeEntry():
@@ -35,6 +36,6 @@ def test_truncate_at_every_byte(tmp_path):
         entries = readWAL(path)
 
         if cut < first_size:
-            assert len(entries) == 0, f"fails when cutting at byte {cut}"
+            assert entries == [], f"fails when cutting at byte {cut}"
         else:
-            assert len(entries) == 1, f"fails when cutting at byte {cut}"
+            assert entries == [(1, "a", "1")], f"fails when cutting at byte {cut}"
