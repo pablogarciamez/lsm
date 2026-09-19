@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lsm"
+version = "0.1.0"
+description = "Implementation of LSM Tree structure from scratch"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24"]
+authors = [{name = "Pablo García Mezcua"}]
+license = "MIT"
+license-files = ["LICENSE"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-cov>=7.1"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
