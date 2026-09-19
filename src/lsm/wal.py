@@ -1,3 +1,4 @@
+
 def writeEntry(type, key, val, filename = 'data.wal'):
     encodedKey = key.encode('utf-8')
     encodedVal = val.encode('utf-8')

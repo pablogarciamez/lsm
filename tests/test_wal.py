@@ -1,11 +1,14 @@
 
 from lsm import writeEntry, readEntry, readWAL
 
-def test_writeEntry():
-    with open("test.wal", "wb") as f:
-        pass
-    writeEntry(0, "a", "3", "test.wal")
-    writeEntry(1, "a", "", "test.wal")
+def test_writeEntry(tmp_path):
+    path = tmp_path / "wal.log"
+    writeEntry(0, "a", "3", path)
+    writeEntry(1, "a", "", path)
+    assert path.read_bytes() == (
+        b'\x00' + b'\x01\x00\x00\x00' + b'a' + b'\x01\x00\x00\x00' + b'3'   # put a=3
+        + b'\x01' + b'\x01\x00\x00\x00' + b'a' + b'\x00\x00\x00\x00' + b''  # delete a
+    )
 
 def test_readEntry():
     with open("test.wal", "wb") as f:
