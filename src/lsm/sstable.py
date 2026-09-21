@@ -36,7 +36,7 @@ def readIndex(path):
             pos = int.from_bytes(f.read(8), 'little')
             index.append((key, pos))
     return index
-'''''
+
 def getSSTable(path, key):
     index = readIndex(path)
     low, high = 0, len(index) - 1
