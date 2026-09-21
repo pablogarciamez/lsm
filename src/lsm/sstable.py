@@ -1,4 +1,5 @@
 from .memtable import Memtable, deleted
+from .wal import readEntry
 
 def writeSSTable(memtable, path):
     index = []
@@ -35,3 +36,18 @@ def readIndex(path):
             pos = int.from_bytes(f.read(8), 'little')
             index.append((key, pos))
     return index
+'''''
+def getSSTable(path, key):
+    index = readIndex(path)
+    low, high = 0, len(index) - 1
+    while(low <= high):
+        mid = (low + high) // 2
+        if index[mid][0] == key:
+            with open(path, 'rb') as f:
+                f.seek(index[mid][1])
+                entry = readEntry(f)
+                return deleted if entry[0] == 1 else entry[2]
+        if index[mid][0] < key: low = mid + 1
+        else: high = mid - 1
+    return None
+

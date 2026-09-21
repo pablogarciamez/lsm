@@ -1,4 +1,4 @@
-from lsm import Memtable, writeSSTable, readIndex
+from lsm import Memtable, writeSSTable, getSSTable, readIndex, deleted
 
 def test_writeSSTable_example(tmp_path):
     path = tmp_path / "table.sst"
@@ -31,3 +31,18 @@ def test_readIndex_example(tmp_path):
     writeSSTable(table, path)
 
     assert readIndex(path) == [("a", 0), ("b", 11), ("carro", 21)]
+
+def test_getSSTable_example(tmp_path):
+    path = tmp_path / "table.sst"
+    table = Memtable()
+    table.put("a", "3")
+    table.delete("b")
+    table.put("carro", "xy")
+    writeSSTable(table, path)
+
+    assert getSSTable(path, "a") == "3"
+    assert getSSTable(path, "carro") == "xy"
+    assert getSSTable(path, "b") is deleted
+    assert getSSTable(path, "0") is None      # menor que todas
+    assert getSSTable(path, "c") is None      # entre b y carro
+    assert getSSTable(path, "zzz") is None    # mayor que todas
