@@ -1,4 +1,4 @@
-from lsm import Memtable
+from lsm import Memtable, deleted
 
 def test_put_and_read():
     m = Memtable()
@@ -12,7 +12,7 @@ def test_read_deleted():
     m.put("a", "3")
     m.put("c", "3")
     m.delete("c")
-    assert m.get("c") == None
+    assert m.get("c") == deleted
 
 def test_read_not_put():
     m = Memtable()
@@ -41,10 +41,10 @@ def test_delete_not_put():
     m.put("a", "3")
     m.put("c", "3")
     m.delete("b")
-    assert m.get("b") == None
+    assert m.get("b") == deleted
 
 def test_delete_empty():
     m = Memtable()
     m.delete("b")
-    assert m.get("b") == None
+    assert m.get("b") == deleted
 

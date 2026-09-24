@@ -1,11 +1,12 @@
-from .memtable import Memtable
+from .memtable import Memtable, deleted
 from .wal import writeEntry, readWAL
-from .sstable import writeSSTable
+from .sstable import writeSSTable, getSSTable
 
 class Store:
     def __init__(self, walFilename):
         self.walFilename = walFilename
         self.table = Memtable()
+        self.sstables = []
         try:
             entries = readWAL(walFilename)
         except FileNotFoundError:
@@ -22,13 +23,23 @@ class Store:
         self.table.put(key, val)
 
     def get(self, key):
-        return self.table.get(key)
+        tableVal = self.table.get(key)
+        if tableVal is not None:
+            return tableVal if tableVal != deleted else None
+        else:
+            for sstable in reversed(self.sstables):
+                sstableVal = getSSTable(sstable, key)
+                if sstableVal is not None:
+                    return sstableVal if sstable != deleted else None
+        return None
+
 
     def delete(self, key):
         writeEntry(1, key, "", self.walFilename)
         self.table.delete(key)
 
     def flush(self, sstFilename):
+        self.sstables.append(sstFilename)
         writeSSTable(self.table, sstFilename)
         self.table = Memtable()
         with open(self.walFilename, "wb") as f:

@@ -89,3 +89,14 @@ def test_flush(tmp_path):
     assert getSSTable(sst, "a") == "1"
     assert getSSTable(sst, "b") is deleted
     assert store.table.data == []
+
+def test_get_from_sstable(tmp_path):
+    wal = tmp_path / "data.wal"
+    sst = tmp_path / "table.sst"
+    store = Store(wal)
+    store.put("a", "1")
+    store.put("b", "3")
+    store.flush(sst)
+    store.delete("a")
+    assert store.get("b") == "3"
+    assert store.get("a") is None

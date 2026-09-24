@@ -21,7 +21,7 @@ class Memtable:
             mid = (low + high) // 2
             if self.data[mid][0] == key:
                 if self.data[mid][1] == deleted:
-                    return None
+                    return deleted
                 else:
                     return self.data[mid][1]
             if self.data[mid][0] < key: low = mid + 1
