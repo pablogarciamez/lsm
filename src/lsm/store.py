@@ -1,12 +1,18 @@
 from .memtable import Memtable, deleted
 from .wal import writeEntry, readWAL
 from .sstable import writeSSTable, getSSTable
+from pathlib import Path
 
 class Store:
-    def __init__(self, walFilename):
+    def __init__(self, walFilename, directory = None, maxLength = 100):
         self.walFilename = walFilename
         self.table = Memtable()
         self.sstables = []
+        self.counter = 0
+        if directory is None:
+            directory = Path(walFilename).parent
+        self.directory = Path(directory)
+        self.maxLength = maxLength
         try:
             entries = readWAL(walFilename)
         except FileNotFoundError:
@@ -21,6 +27,8 @@ class Store:
     def put(self, key, val):
         writeEntry(0, key, val, self.walFilename)
         self.table.put(key, val)
+        if len(self.table.data) >= self.maxLength:
+            self.flush()
 
     def get(self, key):
         tableVal = self.table.get(key)
@@ -37,9 +45,13 @@ class Store:
     def delete(self, key):
         writeEntry(1, key, "", self.walFilename)
         self.table.delete(key)
+        if len(self.table.data) >= self.maxLength:
+            self.flush()
 
-    def flush(self, sstFilename):
+    def flush(self):
+        sstFilename = self.directory / f"{self.counter}.sst"
         writeSSTable(self.table, sstFilename)
+        self.counter += 1
         self.sstables.append(sstFilename)
         self.table = Memtable()
         with open(self.walFilename, "wb") as f:

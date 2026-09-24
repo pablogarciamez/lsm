@@ -76,27 +76,29 @@ def test_truncated_put_of_new_key_leaves_others_intact(tmp_path):
 
 def test_flush(tmp_path):
     wal = tmp_path / "data.wal"
-    sst = tmp_path / "table.sst"
     store = Store(wal)
     store.put("a", "1")
     store.put("b", "3")
     store.put("c", "5")
     store.put("d", "6")
     store.delete("b")
-    store.flush(sst)
+    store.flush()
+
+    sst = store.sstables[-1]
     assert sst.exists()
+    assert sst.parent == tmp_path
     assert [k for k, pos in readIndex(sst)] == ["a", "b", "c", "d"]
     assert getSSTable(sst, "a") == "1"
     assert getSSTable(sst, "b") is deleted
     assert store.table.data == []
+    assert wal.read_bytes() == b""
 
 def test_get_from_sstable(tmp_path):
     wal = tmp_path / "data.wal"
-    sst = tmp_path / "table.sst"
     store = Store(wal)
     store.put("a", "1")
     store.put("b", "3")
-    store.flush(sst)
+    store.flush()
     store.delete("a")
     assert store.get("b") == "3"
     assert store.get("a") is None
@@ -104,7 +106,7 @@ def test_get_from_sstable(tmp_path):
 def test_overwrite_after_flush(tmp_path):
     store = Store(tmp_path / "data.wal")
     store.put("a", "1")
-    store.flush(tmp_path / "t1.sst")
+    store.flush()
     store.put("a", "2")
 
     assert store.get("a") == "2"
@@ -113,9 +115,9 @@ def test_overwrite_after_flush(tmp_path):
 def test_newer_sstable_wins(tmp_path):
     store = Store(tmp_path / "data.wal")
     store.put("a", "1")
-    store.flush(tmp_path / "t1.sst")
+    store.flush()
     store.put("a", "2")
-    store.flush(tmp_path / "t2.sst")
+    store.flush()
 
     assert store.get("a") == "2"
 
@@ -123,9 +125,9 @@ def test_newer_sstable_wins(tmp_path):
 def test_delete_in_sstable_hides_older_value(tmp_path):
     store = Store(tmp_path / "data.wal")
     store.put("a", "1")
-    store.flush(tmp_path / "t1.sst")
+    store.flush()
     store.delete("a")
-    store.flush(tmp_path / "t2.sst")
+    store.flush()
 
     assert store.get("a") is None
 
@@ -133,6 +135,66 @@ def test_delete_in_sstable_hides_older_value(tmp_path):
 def test_get_unknown_key_returns_none(tmp_path):
     store = Store(tmp_path / "data.wal")
     store.put("a", "1")
-    store.flush(tmp_path / "t1.sst")
+    store.flush()
 
     assert store.get("z") is None
+
+def test_put_triggers_flush_at_limit(tmp_path):
+    store = Store(tmp_path / "data.wal", maxLength=3)
+    store.put("a", "1")
+    store.put("b", "2")
+    assert store.sstables == []
+
+    store.put("c", "3")
+
+    assert len(store.sstables) == 1
+    assert store.table.data == []
+    assert (tmp_path / "data.wal").read_bytes() == b""
+    assert store.get("a") == "1"
+    assert store.get("b") == "2"
+    assert store.get("c") == "3"
+
+
+def test_many_puts_create_distinct_sstables(tmp_path):
+    store = Store(tmp_path / "data.wal", maxLength=3)
+    for i in range(10):
+        store.put(f"k{i}", str(i))
+
+    assert len(store.sstables) == 3
+    assert len(set(store.sstables)) == 3
+    assert all(p.exists() for p in store.sstables)
+    for i in range(10):
+        assert store.get(f"k{i}") == str(i)
+
+
+def test_overwrite_across_automatic_flushes(tmp_path):
+    store = Store(tmp_path / "data.wal", maxLength=2)
+    store.put("a", "1")
+    store.put("b", "1")   # flush 1: a=1, b=1
+    store.put("a", "2")
+    store.put("c", "1")   # flush 2: a=2, c=1
+
+    assert len(store.sstables) == 2
+    assert store.get("a") == "2"
+    assert store.get("b") == "1"
+
+
+def test_delete_can_trigger_flush_and_hides_old_value(tmp_path):
+    store = Store(tmp_path / "data.wal", maxLength=2)
+    store.put("a", "1")
+    store.put("b", "1")   # flush 1
+    store.delete("a")
+    store.delete("b")     # flush 2: dos borrados
+
+    assert len(store.sstables) == 2
+    assert store.get("a") is None
+    assert store.get("b") is None
+
+
+def test_sstables_go_in_given_directory(tmp_path):
+    sst_dir = tmp_path / "ssts"
+    sst_dir.mkdir()
+    store = Store(tmp_path / "data.wal", directory=sst_dir, maxLength=1)
+    store.put("a", "1")
+
+    assert store.sstables[0].parent == sst_dir
