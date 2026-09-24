@@ -1,4 +1,4 @@
-from lsm import Store
+from lsm import Store, readIndex, getSSTable, deleted
 
 def test_store_without_existing_wal(tmp_path):
     path = tmp_path / "data.wal"
@@ -73,3 +73,19 @@ def test_truncated_put_of_new_key_leaves_others_intact(tmp_path):
         assert restarted.get("ñandú") is None, f"fails when cutting at byte {cut}"
         assert restarted.get("a") == "1", f"fails when cutting at byte {cut}"
         assert restarted.get("b") == "2", f"fails when cutting at byte {cut}"
+
+def test_flush(tmp_path):
+    wal = tmp_path / "data.wal"
+    sst = tmp_path / "table.sst"
+    store = Store(wal)
+    store.put("a", "1")
+    store.put("b", "3")
+    store.put("c", "5")
+    store.put("d", "6")
+    store.delete("b")
+    store.flush(sst)
+    assert sst.exists()
+    assert [k for k, pos in readIndex(sst)] == ["a", "b", "c", "d"]
+    assert getSSTable(sst, "a") == "1"
+    assert getSSTable(sst, "b") is deleted
+    assert store.table.data == []

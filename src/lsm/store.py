@@ -1,5 +1,6 @@
 from .memtable import Memtable
 from .wal import writeEntry, readWAL
+from .sstable import writeSSTable
 
 class Store:
     def __init__(self, walFilename):
@@ -26,3 +27,9 @@ class Store:
     def delete(self, key):
         writeEntry(1, key, "", self.walFilename)
         self.table.delete(key)
+
+    def flush(self, sstFilename):
+        writeSSTable(self.table, sstFilename)
+        self.table = Memtable()
+        with open(self.walFilename, "wb") as f:
+            pass
