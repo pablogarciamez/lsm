@@ -100,3 +100,39 @@ def test_get_from_sstable(tmp_path):
     store.delete("a")
     assert store.get("b") == "3"
     assert store.get("a") is None
+
+def test_overwrite_after_flush(tmp_path):
+    store = Store(tmp_path / "data.wal")
+    store.put("a", "1")
+    store.flush(tmp_path / "t1.sst")
+    store.put("a", "2")
+
+    assert store.get("a") == "2"
+
+
+def test_newer_sstable_wins(tmp_path):
+    store = Store(tmp_path / "data.wal")
+    store.put("a", "1")
+    store.flush(tmp_path / "t1.sst")
+    store.put("a", "2")
+    store.flush(tmp_path / "t2.sst")
+
+    assert store.get("a") == "2"
+
+
+def test_delete_in_sstable_hides_older_value(tmp_path):
+    store = Store(tmp_path / "data.wal")
+    store.put("a", "1")
+    store.flush(tmp_path / "t1.sst")
+    store.delete("a")
+    store.flush(tmp_path / "t2.sst")
+
+    assert store.get("a") is None
+
+
+def test_get_unknown_key_returns_none(tmp_path):
+    store = Store(tmp_path / "data.wal")
+    store.put("a", "1")
+    store.flush(tmp_path / "t1.sst")
+
+    assert store.get("z") is None

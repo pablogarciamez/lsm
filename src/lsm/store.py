@@ -30,7 +30,7 @@ class Store:
             for sstable in reversed(self.sstables):
                 sstableVal = getSSTable(sstable, key)
                 if sstableVal is not None:
-                    return sstableVal if sstable != deleted else None
+                    return sstableVal if sstableVal != deleted else None
         return None
 
 
@@ -39,8 +39,8 @@ class Store:
         self.table.delete(key)
 
     def flush(self, sstFilename):
-        self.sstables.append(sstFilename)
         writeSSTable(self.table, sstFilename)
+        self.sstables.append(sstFilename)
         self.table = Memtable()
         with open(self.walFilename, "wb") as f:
             pass
