@@ -7,11 +7,11 @@ class Store:
     def __init__(self, walFilename, directory = None, maxLength = 100):
         self.walFilename = walFilename
         self.table = Memtable()
-        self.sstables = []
-        self.counter = 0
         if directory is None:
             directory = Path(walFilename).parent
         self.directory = Path(directory)
+        self.sstables = sorted(self.directory.glob("*.sst"), key = lambda p: int(p.stem))
+        self.counter = 0 if self.sstables == [] else int(self.sstables[-1].stem) + 1
         self.maxLength = maxLength
         try:
             entries = readWAL(walFilename)

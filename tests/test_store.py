@@ -190,7 +190,6 @@ def test_delete_can_trigger_flush_and_hides_old_value(tmp_path):
     assert store.get("a") is None
     assert store.get("b") is None
 
-
 def test_sstables_go_in_given_directory(tmp_path):
     sst_dir = tmp_path / "ssts"
     sst_dir.mkdir()
@@ -198,3 +197,17 @@ def test_sstables_go_in_given_directory(tmp_path):
     store.put("a", "1")
 
     assert store.sstables[0].parent == sst_dir
+
+def test_recreate_store(tmp_path):
+    sst_dir = tmp_path / "ssts"
+    wal_dir = tmp_path / "data.wal"
+    sst_dir.mkdir()
+    store1 = Store(wal_dir, directory = sst_dir, maxLength = 1)
+    store1.put("a", "2")
+    store1.put("b", "5")
+    store1.delete("a")
+    store2 = Store(wal_dir, directory = sst_dir, maxLength = 1)
+    store2.put("b", "6")
+    assert int(store2.sstables[-1].stem) == 3
+    assert store2.get("a") is None
+    assert store2.get("b") == "6"
