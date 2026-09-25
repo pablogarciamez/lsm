@@ -211,3 +211,21 @@ def test_recreate_store(tmp_path):
     assert int(store2.sstables[-1].stem) == 3
     assert store2.get("a") is None
     assert store2.get("b") == "6"
+
+def test_compact_store(tmp_path):
+    sst_dir = tmp_path / "ssts"
+    wal_dir = tmp_path / "data.wal"
+    sst_dir.mkdir()
+    store = Store(wal_dir, directory = sst_dir, maxLength = 2)
+    store.put("a", "1")
+    store.put("b", "2")
+    store.put("c", "3")
+    store.delete("a")
+    store.put("b", "4")
+    store.put("d", "1")
+    store.compact()
+    assert len(store.sstables) == 1
+    assert len(list(sst_dir.glob("*.sst"))) == 1
+    assert list(sst_dir.glob("*.sst"))[0].stem == "3"
+    assert store.get("a") is None
+    assert store.get("b") == "4"

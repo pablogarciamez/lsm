@@ -1,6 +1,6 @@
 from .memtable import Memtable, deleted
 from .wal import writeEntry, readWAL
-from .sstable import writeSSTable, getSSTable
+from .sstable import writeSSTable, getSSTable, mergeSSTables
 from pathlib import Path
 
 class Store:
@@ -56,3 +56,12 @@ class Store:
         self.table = Memtable()
         with open(self.walFilename, "wb") as f:
             pass
+
+    def compact(self):
+        sstFilename = self.directory / f"{self.counter}.sst"
+        writeSSTable(mergeSSTables(sorted(self.directory.glob("*.sst"), key = lambda p: int(p.stem))),sstFilename)
+        self.counter += 1
+        self.sstables.append(sstFilename)
+        for path in self.sstables[:-1]:
+            path.unlink()
+        self.sstables = [self.sstables[-1]]

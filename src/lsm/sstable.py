@@ -37,6 +37,16 @@ def readIndex(path):
             index.append((key, pos))
     return index
 
+def readSSTable(path):
+    keyVals = []
+    index = readIndex(path)
+    with open(path, 'rb') as f:
+        for keyPos in index:
+            f.seek(keyPos[1])
+            entry = readEntry(f)
+            keyVals.append((keyPos[0], deleted if entry[0] == 1 else entry[2]))
+    return keyVals
+
 def getSSTable(path, key):
     index = readIndex(path)
     low, high = 0, len(index) - 1
@@ -51,3 +61,14 @@ def getSSTable(path, key):
         else: high = mid - 1
     return None
 
+def mergeSSTables(paths):
+    table = Memtable()
+    for path in paths:
+        keyVals = readSSTable(path)
+        for keyVal in keyVals:
+            table.put(keyVal[0], keyVal[1])
+    filteredTable = Memtable()
+    for keyVal in table.data:
+        if keyVal[1] != deleted:
+            filteredTable.put(keyVal[0], keyVal[1])
+    return filteredTable
