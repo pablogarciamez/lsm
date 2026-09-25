@@ -1,9 +1,11 @@
 from .memtable import Memtable, deleted
 from .wal import readEntry
+from pathlib import Path
 
 def writeSSTable(memtable, path):
+    tempPath = Path(path.parent) / "temp.sstTemp"
     index = []
-    with open(path, 'wb') as f:
+    with open(tempPath, 'wb') as f:
         for keyVal in memtable.data:
             index.append([keyVal[0], f.tell()])
             type = 1 if keyVal[1] == deleted else 0
@@ -22,6 +24,7 @@ def writeSSTable(memtable, path):
             f.write(encodedKey)
             f.write(keyPos[1].to_bytes(8, 'little'))
         f.write(indexStart.to_bytes(8, 'little'))
+    tempPath.rename(path)
 
 def readIndex(path):
     index = []

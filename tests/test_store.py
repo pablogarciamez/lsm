@@ -229,3 +229,46 @@ def test_compact_store(tmp_path):
     assert list(sst_dir.glob("*.sst"))[0].stem == "3"
     assert store.get("a") is None
     assert store.get("b") == "4"
+
+
+def test_kill_mid_write_no_corruption(tmp_path):
+    sst_dir = tmp_path / "ssts"
+    wal_dir = tmp_path / "data.wal"
+    sst_dir.mkdir()
+
+    # Un flush legítimo previo, hecho de forma normal (sin matar nada)
+    store = Store(wal_dir, directory = sst_dir, maxLength = 2)
+    store.put("old", "safe")
+    store.put("old2", "safe2")
+    assert (sst_dir / "0.sst").exists()
+
+    # Simulamos el SIGUIENTE flush (1.sst) muriendo a mitad de la escritura.
+    # El worker escribe deliberadamente despacio (ver _kill_worker.py) y
+    # avisa con un archivo "marker" justo al empezar, para no depender de
+    # lo rápido o lento que vaya el disco de la máquina que ejecute esto.
+    import subprocess, sys, time
+    from pathlib import Path
+    worker = Path(__file__).parent / "_kill_worker.py"
+    target = sst_dir / "1.sst"
+    marker = tmp_path / "started.marker"
+
+    proc = subprocess.Popen(
+        [sys.executable, str(worker), str(target), str(marker), "30", "0.05"]
+    )
+    deadline = time.time() + 5
+    while not marker.exists() and time.time() < deadline:
+        time.sleep(0.001)
+    assert marker.exists(), "el worker nunca llegó a avisar; el test no prueba nada"
+    proc.kill()
+    proc.wait()
+
+    # El archivo final NUNCA debió llegar a existir: el rename no se ejecutó
+    assert not target.exists()
+    # Y el flush anterior, ya válido en disco, no se ha tocado
+    assert (sst_dir / "0.sst").exists()
+
+    # Recrear el Store sobre el mismo directorio no debe fallar ni perder nada
+    store2 = Store(wal_dir, directory = sst_dir, maxLength = 2)
+    assert [p.name for p in store2.sstables] == ["0.sst"]
+    assert store2.get("old") == "safe"
+    assert store2.get("old2") == "safe2"
